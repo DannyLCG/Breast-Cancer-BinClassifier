@@ -1,0 +1,11 @@
+preprocess:
+  input: data/raw/ #Update once data pipeline is designed
+  output: data/processed/
+
+train:
+    data: data/processed
+    model: models/model.pkl
+    random_state: 42
+    n_layers: # Update once model architecture is created
+    n_conv_layers:
+    
