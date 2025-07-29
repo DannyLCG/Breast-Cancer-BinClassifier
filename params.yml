@@ -1,11 +1,61 @@
-preprocess:
-  input: data/raw/ #Update once data pipeline is designed
-  output: data/processed/
+# Parameters for data and model piplines
 
-train:
-    data: data/processed
-    model: models/model.pkl
-    random_state: 42
-    n_layers: # Update once model architecture is created
-    n_conv_layers:
+# Data paths
+data:
+  raw_path: "data/raw"
+  processed_path: "data/processed"
+
+# Preprocessing configuration
+preprocessing:
+  transforms:
+    # Image resizing
+    resize:
+      height: 224
+      width: 224
     
+    # Normalization (ImageNet values - adjust when using other models)
+    normalize: # For grayscale images only
+      mean: [0.5]  # RGB channels
+      std: [0.5]   # RGB channels
+      
+    
+    # Data augmentation (only applied to training set)
+    augmentation:
+      enabled: false # We won't enable augmentation to investigate model performance wo. it
+      random_horizontal_flip: true
+      
+      random_rotation:
+        enabled: true
+        degrees: 10
+      
+      color_jitter:
+        enabled: true
+        brightness: 0.2
+        contrast: 0.2
+        saturation: 0.2
+        hue: 0.1
+
+# MLflow configuration
+mlflow:
+  experiment_name: "breast_cancer_classification"
+  tracking_uri: "mlruns"  # Local tracking, change to remote URI if needed
+
+# Model configuration (for future use)
+model:
+  name: "resnet18" # UPDATE WHEN MODEL ARCHITENCTING IS DONE
+  pretrained: true
+  num_classes: 2
+
+# Training configuration (for future use)
+# UPDATE PARAMS FOR HPO
+training:
+  batch_size: 32 # Adjust based on GPU memory
+  learning_rate: 0.001 
+  epochs: 50
+  optimizer: "adam"
+  
+# DVC configuration
+dvc:
+  remote:
+    name: "myremote"
+    # url: "s3://my-bucket/data"  # Update with DVC S3 bucket
