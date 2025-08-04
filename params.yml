@@ -15,25 +15,14 @@ preprocessing:
     
     # Normalization (ImageNet values - adjust when using other models)
     normalize: # For grayscale images only
-      mean: [0.5]  # RGB channels
-      std: [0.5]   # RGB channels
+      mean: [0.5] 
+      std: [0.5]  
       
     
     # Data augmentation (only applied to training set)
     augmentation:
       enabled: false # We won't enable augmentation to investigate model performance wo. it
       random_horizontal_flip: true
-      
-      random_rotation:
-        enabled: true
-        degrees: 10
-      
-      color_jitter:
-        enabled: true
-        brightness: 0.2
-        contrast: 0.2
-        saturation: 0.2
-        hue: 0.1
 
 # MLflow configuration
 mlflow:
