@@ -3,12 +3,9 @@ import os
 import pytest
 import yaml
 import torch
-from PIL import Image
-import tempfile
 import shutil
 from pathlib import Path
 
-# Import your preprocessing functions
 import sys
 sys.path.append('src')
 from preprocess import run_preprocessing, get_transforms, process_images, load_config
@@ -17,7 +14,7 @@ from preprocess import run_preprocessing, get_transforms, process_images, load_c
 def mini_dataset(tmp_path):
     """Create a mini dataset with 3 images per split/class from existing data"""
     
-    # Path to your actual data
+    # Path to actual data
     actual_raw_path = "data/raw"
     
     # Create temporary directory structure
@@ -27,7 +24,7 @@ def mini_dataset(tmp_path):
     
     for split in splits:
         for class_label in classes:
-            # Source directory (your actual data)
+            # Source dir to actual data
             source_dir = Path(actual_raw_path) / split / class_label
             
             # Destination directory (temporary test data)
@@ -35,7 +32,7 @@ def mini_dataset(tmp_path):
             dest_dir.mkdir(parents=True, exist_ok=True)
             
             if source_dir.exists():
-                # Get first 3 image files from your actual data
+                # Get first 3 image files from our data
                 image_files = [f for f in os.listdir(source_dir) 
                               if f.lower().endswith('.jpg')][:3]
                 
@@ -52,9 +49,9 @@ def mini_dataset(tmp_path):
 
 @pytest.fixture
 def test_config(mini_dataset):
-    """Create a test config that uses your actual params.yml but with temp paths"""
+    """Create a test config copying params from the actual params.yml file but with temp paths"""
     
-    # Load your actual params.yml
+    # Load actual params.yml
     with open("params.yml", 'r') as f:
         config = yaml.safe_load(f)
     
@@ -121,7 +118,7 @@ def test_process_images_single_class(mini_dataset, test_config):
         assert tensor.shape == (1, 224, 224)  # Grayscale, 224x224
 
 def test_full_preprocessing_pipeline(mini_dataset, test_config):
-    """Test the complete preprocessing pipeline with your actual config"""
+    """Test the complete preprocessing pipeline w. the actual config"""
     
     print(f"\nUsing test config: {test_config}")
     print(f"Mini dataset location: {mini_dataset}")
@@ -211,8 +208,7 @@ def test_missing_input_directory(mini_dataset, test_config):
     
     transform_fn = get_transforms(config, 'test')
     
-    # This should handle the missing directory gracefully
-    # (Your current code logs a warning and continues)
+    # The 'process_images' func should handle the missing directory gracefully
     stats = process_images(
         input_dir=non_existent_dir,
         output_dir=output_dir,

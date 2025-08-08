@@ -3,13 +3,12 @@ import os
 import yaml
 
 import torch
-import torchvision.transforms as transforms
+from torchvision import transforms
 from PIL import Image
 import mlflow
 
 import logging
-import tempfile
-import shutil
+import traceback
 
 
 # Set up logging
@@ -81,6 +80,7 @@ def process_images(input_dir: str,
         try:
             # Load image
             input_path = os.path.join(input_dir, filename)
+            logger.debug("Processing image: %s", input_path)
             image = Image.open(input_path).convert('L') # Convert to grayscale
             
             # Apply transforms
@@ -91,10 +91,12 @@ def process_images(input_dir: str,
             output_path = os.path.join(output_dir, output_filename)
             torch.save(processed_tensor, output_path)
             
+            logger.debug("Saved processed tensor to: %s", output_path)
             processed_count += 1
             
         except Exception as e:
             logger.error("Failed to process %s: %s", filename, str(e))
+            logger.debug(traceback.format_exc())
             failed_count += 1
     
     return {
@@ -110,6 +112,8 @@ def run_preprocessing(config_path: str='params.yml',
     
     # Load configuration
     config = load_config(config_path)
+    logger.info("Loaded config from %s", config_path)
+    logger.debug("Config contents: %s", config)
     
     # Define paths
     raw_data_path = config['data']['raw_path']
@@ -140,7 +144,7 @@ def run_preprocessing(config_path: str='params.yml',
             })
         
         for split in splits:
-            logger.info("Processing %s split...", split)
+            logger.info("Starting processing for %s split...", split)
             
             # Get transforms for this split
             transform_fn = get_transforms(config, split)
@@ -171,6 +175,7 @@ def run_preprocessing(config_path: str='params.yml',
                 
                 logger.info("Completed %s/%s: %d/%d processed, %d failed",
                            split, class_name, stats['processed'], stats['total'], stats['failed'])
+            logger.info(f"Finished processing {split} split.")
         
         # Log overall metrics
         if enable_mlflow:
