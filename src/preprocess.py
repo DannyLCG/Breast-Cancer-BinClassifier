@@ -123,13 +123,20 @@ def run_preprocessing(config_path: str='params.yml',
     classes = ['0', '1']  # benign, malignant
     
     total_stats = {'processed': 0, 'failed': 0, 'total': 0}
-
-    # Set mlflow run name
+    
+    # Set mlflow
+    experiment_name = config.get('mlflow', {}).get('experiment_name', 'default')
     run_name = "data_preprocessing"
     if testing_size:
-        run_name = f"testing_{run_name}"
+        run_name = f"testing_{run_name}" #for testing runs
 
-    # Star mlflow run if enabled
+    if enable_mlflow:
+        uri = config.get('mlflow', {}).get('tracking_uri')
+        if uri:
+            mlflow.set_tracking_uri(uri)
+        mlflow.set_experiment(experiment_name)
+
+    # Start mlflow run if enabled
     mlflow_context = mlflow.start_run(run_name=run_name) if enable_mlflow else None
     try:
         if enable_mlflow:

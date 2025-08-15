@@ -27,7 +27,7 @@ preprocessing:
 # MLflow configuration
 mlflow:
   experiment_name: "breast_cancer_classification"
-  tracking_uri: "mlruns"  # Local tracking, change to remote URI if needed
+  tracking_uri: "https://dagshub.com/DannyLCG/breastCancerBinClass.mlflow"
 
 # Model configuration (for future use)
 model:
