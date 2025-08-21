@@ -1,6 +1,10 @@
 [core]
     remote = dagshub
     check_update = false
+[cache]
+    type = symlink
 ['remote "dagshub"']
     url = https://dagshub.com/DannyLCG/breastCancerBinClass.dvc
     auth = basic
+    user = DannyLCG
+    password = a08157be0d36a359c5374289adb8eceef1ad0990
