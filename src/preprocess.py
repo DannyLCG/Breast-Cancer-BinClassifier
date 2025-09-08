@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # To load params from params.yaml
-def load_config(config_path: str = "params.yml") -> dict:
+def load_config(config_path: str = "params.yaml") -> dict:
     """Load configuration from YAML file"""
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
@@ -105,7 +105,7 @@ def process_images(input_dir: str,
         'total': len(image_files)
     }
 
-def run_preprocessing(config_path: str='params.yml',
+def run_preprocessing(config_path: str='params.yaml',
                      testing_size: int=None, 
                      enable_mlflow: bool=True) -> dict:
     """Main preprocessing function."""
