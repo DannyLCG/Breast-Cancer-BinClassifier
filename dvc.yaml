@@ -5,6 +5,15 @@ stages:
     - data/raw
     - src/preprocess.py
     params:
-    - params.yml
+    - data.raw_path
+    - data.processed_path
+    - preprocessing.transforms.resize.height
+    - preprocessing.transforms.resize.width
+    - preprocessing.transforms.normalize.mean
+    - preprocessing.transforms.normalize.std
+    - preprocessing.transforms.augmentation.enabled
+    - preprocessing.transforms.augmentation.random_horizontal_flip
+    - mlflow.experiment_name
+    - mlflow.tracking_uri
     outs:
     - data/processed
