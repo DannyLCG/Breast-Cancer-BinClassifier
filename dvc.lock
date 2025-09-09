@@ -1,0 +1,35 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 2fcd975429465aa4ef3562b62f95e51f.dir
+      size: 103494030
+      nfiles: 3383
+    - path: src/preprocess.py
+      hash: md5
+      md5: 1fd55c85241a4193a3db8aeea33264cd
+      size: 7712
+    params:
+      params.yaml:
+        data.processed_path: data/processed
+        data.raw_path: data/raw
+        mlflow.experiment_name: breast_cancer_classification
+        mlflow.tracking_uri: 
+          https://dagshub.com/DannyLCG/breastCancerBinClass.mlflow
+        preprocessing.transforms.augmentation.enabled: false
+        preprocessing.transforms.augmentation.random_horizontal_flip: true
+        preprocessing.transforms.normalize.mean:
+        - 0.5
+        preprocessing.transforms.normalize.std:
+        - 0.5
+        preprocessing.transforms.resize.height: 224
+        preprocessing.transforms.resize.width: 224
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: c6621663a6a8d3c5acb71ea5773417cd.dir
+      size: 686061013
+      nfiles: 3383
