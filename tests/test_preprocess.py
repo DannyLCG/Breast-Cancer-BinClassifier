@@ -49,10 +49,10 @@ def mini_dataset(tmp_path):
 
 @pytest.fixture
 def test_config(mini_dataset):
-    """Create a test config copying params from the actual params.yml file but with temp paths"""
+    """Create a test config copying params from the actual params.yaml file but with temp paths"""
     
-    # Load actual params.yml
-    with open("params.yml", 'r') as f:
+    # Load actual params.yaml
+    with open("params.yaml", 'r') as f:
         config = yaml.safe_load(f)
     
     # Override paths to use temporary directories
@@ -60,7 +60,7 @@ def test_config(mini_dataset):
     config['data']['processed_path'] = str(mini_dataset / "data" / "processed")
     
     # Save modified config to temp location
-    config_path = mini_dataset / "test_params.yml"
+    config_path = mini_dataset / "test_params.yaml"
     with open(config_path, 'w') as f:
         yaml.dump(config, f)
     
