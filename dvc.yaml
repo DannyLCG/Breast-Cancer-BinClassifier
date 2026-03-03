@@ -16,4 +16,6 @@ stages:
     - mlflow.experiment_name
     - mlflow.tracking_uri
     outs:
-    - data/processed
+    - data/processed/train_dataset.pt
+    - data/processed/valid_dataset.pt
+    - data/processed/test_dataset.pt

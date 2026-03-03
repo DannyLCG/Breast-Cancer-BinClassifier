@@ -21,7 +21,7 @@ preprocessing:
     
     # Data augmentation (only applied to training set)
     augmentation:
-      enabled: false # We won't enable augmentation to investigate model performance wo. it
+      enabled: true 
       random_horizontal_flip: true
 
 # MLflow configuration
@@ -29,19 +29,21 @@ mlflow:
   experiment_name: "breast_cancer_classification"
   tracking_uri: "https://dagshub.com/DannyLCG/breastCancerBinClass.mlflow"
 
-# Model configuration (for future use)
+# Model configuration
 model:
-  name: "resnet18" # UPDATE WHEN MODEL ARCHITENCTING IS DONE
+  name: "efficientnet_b0" 
   pretrained: true
   num_classes: 2
 
-# Training configuration (for future use)
-# UPDATE PARAMS FOR HPO
+# Training configuration 
 training:
   batch_size: 32 # Adjust based on GPU memory
   learning_rate: 0.001 
-  epochs: 50
-  optimizer: "adam"
+  weight_decay: 0.01
+  dropout: 0.2
+  epochs: 100
+  patience: 10
+  optimizer: "adamw" # OR ""
   
 # DVC configuration
 dvc:

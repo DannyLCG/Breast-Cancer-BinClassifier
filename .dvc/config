@@ -2,7 +2,7 @@
     remote = dagshub
     check_update = false
 [cache]
-    type = symlink
+    type = copy
 ['remote "dagshub"']
     url = https://dagshub.com/DannyLCG/breastCancerBinClass.dvc
     auth = basic

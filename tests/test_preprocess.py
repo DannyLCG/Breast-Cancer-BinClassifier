@@ -1,41 +1,43 @@
 # Script to test the preprocessing pipeline in src/preprocess.py using pytest
 import os
+from pathlib import Path
 import pytest
 import yaml
 import torch
 import shutil
-from pathlib import Path
+
+from torch.utils.data import DataLoader
 
 import sys
 sys.path.append('src')
-from preprocess import run_preprocessing, get_transforms, process_images, load_config
+from preprocess import run_preprocessing, get_transforms, build_dataset, load_config, BreastCancerDataset
 
 @pytest.fixture
 def mini_dataset(tmp_path):
     """Create a mini dataset with 3 images per split/class from existing data"""
-    
+
     # Path to actual data
     actual_raw_path = "data/raw"
-    
+
     # Create temporary directory structure
     temp_raw_path = tmp_path / "data" / "raw"
     splits = ['train', 'valid', 'test']
     classes = ['0', '1']
-    
+
     for split in splits:
         for class_label in classes:
             # Source dir to actual data
             source_dir = Path(actual_raw_path) / split / class_label
-            
+
             # Destination directory (temporary test data)
             dest_dir = temp_raw_path / split / class_label
             dest_dir.mkdir(parents=True, exist_ok=True)
-            
+
             if source_dir.exists():
                 # Get first 3 image files from our data
-                image_files = [f for f in os.listdir(source_dir) 
+                image_files = [f for f in os.listdir(source_dir)
                               if f.lower().endswith('.jpg')][:3]
-                
+
                 # Copy 3 images to temp directory
                 for img_file in image_files:
                     src_path = source_dir / img_file
@@ -44,27 +46,28 @@ def mini_dataset(tmp_path):
                     print(f"Copied {src_path} -> {dst_path}")
             else:
                 print(f"Warning: Source directory {source_dir} does not exist")
-    
+
     return tmp_path
 
 @pytest.fixture
 def test_config(mini_dataset):
     """Create a test config copying params from the actual params.yaml file but with temp paths"""
-    
+
     # Load actual params.yaml
     with open("params.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+
     # Override paths to use temporary directories
     config['data']['raw_path'] = str(mini_dataset / "data" / "raw")
     config['data']['processed_path'] = str(mini_dataset / "data" / "processed")
-    
+
     # Save modified config to temp location
     config_path = mini_dataset / "test_params.yaml"
     with open(config_path, 'w') as f:
         yaml.dump(config, f)
-    
+
     return str(config_path)
+
 
 def test_load_config(test_config):
     """Test that config loading works"""
@@ -73,149 +76,142 @@ def test_load_config(test_config):
     assert config['preprocessing']['transforms']['resize']['height'] == 224
     assert config['preprocessing']['transforms']['resize']['width'] == 224
 
+
 def test_get_transforms(test_config):
     """Test transform creation for different splits"""
     config = load_config(test_config)
-    
-    # Test train transforms (should include augmentation)
+
     train_transforms = get_transforms(config, 'train')
     assert train_transforms is not None
-    
-    # Test validation transforms (should not include augmentation)
+
     val_transforms = get_transforms(config, 'valid')
     assert val_transforms is not None
 
-def test_process_images_single_class(mini_dataset, test_config):
-    """Test processing images for a single class"""
+
+def test_breast_cancer_dataset():
+    """Test BreastCancerDataset behaves correctly"""
+    images = [torch.zeros(1, 224, 224), torch.ones(1, 224, 224)]
+    labels = [0, 1]
+
+    dataset = BreastCancerDataset(images, labels)
+
+    assert len(dataset) == 2
+    img, label = dataset[0]
+    assert img.shape == (1, 224, 224)
+    assert label == 0
+
+
+def test_build_dataset(mini_dataset, test_config):
+    """Test build_dataset returns a BreastCancerDataset with correct structure"""
     config = load_config(test_config)
-    
-    # Test processing train/benign images
-    input_dir = os.path.join(config['data']['raw_path'], 'train', '0')
-    output_dir = os.path.join(config['data']['processed_path'], 'train', '0')
-    
     transform_fn = get_transforms(config, 'train')
-    
-    stats = process_images(
-        input_dir=input_dir,
-        output_dir=output_dir,
-        transform_fn=transform_fn,
-        sample_size=3
-    )
-    
-    # Check stats
-    assert stats['processed'] == 3
+    split_dir = os.path.join(config['data']['raw_path'], 'train')
+    classes = ['0', '1']
+
+    dataset, stats = build_dataset(split_dir, transform_fn, classes, sample_size=3)
+
+    assert isinstance(dataset, BreastCancerDataset)
+    assert stats['processed'] > 0
     assert stats['failed'] == 0
-    assert stats['total'] == 3
-    
-    # Check that output files exist
-    assert os.path.exists(output_dir)
-    output_files = [f for f in os.listdir(output_dir) if f.endswith('.pt')]
-    assert len(output_files) == 3
-    
-    # Check that tensors can be loaded
-    for file in output_files:
-        tensor = torch.load(os.path.join(output_dir, file))
-        assert tensor.shape == (1, 224, 224)  # Grayscale, 224x224
+    assert stats['processed'] == stats['total']
+
+    img, label = dataset[0]
+    assert img.dtype == torch.float32
+    assert len(img.shape) == 3
+    assert label in [0, 1]
+
+
+def test_build_dataset_missing_class_dir(mini_dataset, test_config):
+    """Test build_dataset handles a missing class directory gracefully"""
+    config = load_config(test_config)
+    transform_fn = get_transforms(config, 'train')
+    split_dir = os.path.join(config['data']['raw_path'], 'nonexistent_split')
+    classes = ['0', '1']
+
+    dataset, stats = build_dataset(split_dir, transform_fn, classes, sample_size=3)
+
+    assert isinstance(dataset, BreastCancerDataset)
+    assert len(dataset) == 0
+    assert stats['processed'] == 0
+
 
 def test_full_preprocessing_pipeline(mini_dataset, test_config):
-    """Test the complete preprocessing pipeline w. the actual config"""
-    
+    """Test the complete preprocessing pipeline produces one .pt Dataset file per split"""
+
     print(f"\nUsing test config: {test_config}")
     print(f"Mini dataset location: {mini_dataset}")
-    
-    # Load config to check what we're testing with
+
     config = load_config(test_config)
     print(f"Image size: {config['preprocessing']['transforms']['resize']}")
-    print(f"Normalization: mean={config['preprocessing']['transforms']['normalize']['mean']}, "
-          f"std={config['preprocessing']['transforms']['normalize']['std']}")
-    
-    # Run preprocessing without MLflow (for testing)
+
     stats = run_preprocessing(
         config_path=test_config,
-        testing_size=3,  # Process all 3 images per class/split
+        testing_size=3,
         enable_mlflow=False
     )
-    
+
     print(f"\nProcessing results: {stats}")
-    
-    # Check overall stats
+
     assert stats['processed'] > 0, f"No images were processed. Stats: {stats}"
     assert stats['failed'] == 0, f"Some images failed to process. Stats: {stats}"
-    
-    # Check that processed directories exist and contain .pt files
+
     processed_path = config['data']['processed_path']
     splits = ['train', 'valid', 'test']
-    classes = ['0', '1']
-    
-    total_pt_files = 0
+
     for split in splits:
-        for class_label in classes:
-            output_dir = os.path.join(processed_path, split, class_label)
-            
-            if os.path.exists(output_dir):
-                pt_files = [f for f in os.listdir(output_dir) if f.endswith('.pt')]
-                total_pt_files += len(pt_files)
-                print(f"{split}/{class_label}: {len(pt_files)} .pt files")
-                
-                # Test loading one tensor to verify it works
-                if pt_files:
-                    sample_tensor = torch.load(os.path.join(output_dir, pt_files[0]))
-                    print(f"Sample tensor shape: {sample_tensor.shape}, dtype: {sample_tensor.dtype}")
-                    
-                    # Basic tensor checks
-                    assert sample_tensor.dtype == torch.float32
-                    assert len(sample_tensor.shape) == 3  # Should be (C, H, W)
-    
-    print(f"\nTotal .pt files created: {total_pt_files}")
-    assert total_pt_files > 0, "No .pt files were created"
-    
+        dataset_path = os.path.join(processed_path, f"{split}_dataset.pt")
+        assert os.path.exists(dataset_path), f"Missing dataset file: {dataset_path}"
+
+        dataset = torch.load(dataset_path, weights_only=False)
+        assert isinstance(dataset, BreastCancerDataset), \
+            f"Expected BreastCancerDataset, got {type(dataset)}"
+        assert len(dataset) > 0, f"{split} dataset is empty"
+
+        img, label = dataset[0]
+        assert img.dtype == torch.float32
+        assert len(img.shape) == 3
+        assert label in [0, 1]
+        print(f"{split}: {len(dataset)} samples, tensor shape: {img.shape}")
+
     print("\nTest passed! The preprocessing pipeline works correctly.")
 
-def test_tensor_properties(mini_dataset, test_config):
-    """Test that processed tensors have correct properties"""
-    config = load_config(test_config)
-    
-    # Process one image
-    input_dir = os.path.join(config['data']['raw_path'], 'test', '1')
-    output_dir = os.path.join(config['data']['processed_path'], 'test', '1')
-    
-    transform_fn = get_transforms(config, 'test')
-    
-    process_images(
-        input_dir=input_dir,
-        output_dir=output_dir,
-        transform_fn=transform_fn,
-        sample_size=1
-    )
-    
-    # Load the processed tensor
-    pt_files = [f for f in os.listdir(output_dir) if f.endswith('.pt')]
-    tensor = torch.load(os.path.join(output_dir, pt_files[0]))
-    
-    # Check tensor properties
-    assert tensor.dtype == torch.float32
-    assert tensor.shape == (1, 224, 224)  # Grayscale, resized to 224x224
-    assert tensor.min() >= -3.0  # Reasonable range after normalization
-    assert tensor.max() <= 3.0
 
-def test_missing_input_directory(mini_dataset, test_config):
-    """Test handling of missing input directories"""
+def test_dataset_dataloader_compatible(mini_dataset, test_config):
+    """Test that the saved Dataset can be used with a DataLoader"""
     config = load_config(test_config)
-    
-    # Try to process from non-existent directory
-    non_existent_dir = os.path.join(config['data']['raw_path'], 'nonexistent', '0')
-    output_dir = os.path.join(config['data']['processed_path'], 'nonexistent', '0')
-    
-    transform_fn = get_transforms(config, 'test')
-    
-    # The 'process_images' func should handle the missing directory gracefully
-    stats = process_images(
-        input_dir=non_existent_dir,
-        output_dir=output_dir,
-        transform_fn=transform_fn,
-        sample_size=1
+
+    run_preprocessing(
+        config_path=test_config,
+        testing_size=3,
+        enable_mlflow=False
     )
-    
-    # Should return zero stats for non-existent directory
-    assert stats['processed'] == 0
-    assert stats['total'] == 0
+
+    processed_path = config['data']['processed_path']
+    dataset_path = os.path.join(processed_path, "train_dataset.pt")
+
+    dataset = torch.load(dataset_path, weights_only=False)
+    loader = DataLoader(dataset, batch_size=2, shuffle=False)
+
+    batch_imgs, batch_labels = next(iter(loader))
+    assert batch_imgs.ndim == 4
+    assert batch_imgs.shape[1:] == torch.Size([1, 224, 224])
+    assert batch_labels.ndim == 1
+
+
+def test_tensor_properties(mini_dataset, test_config):
+    """Test that tensors stored in the Dataset have correct properties after normalization"""
+    config = load_config(test_config)
+    transform_fn = get_transforms(config, 'test')
+    split_dir = os.path.join(config['data']['raw_path'], 'test')
+    classes = ['0', '1']
+
+    dataset, _ = build_dataset(split_dir, transform_fn, classes, sample_size=1)
+
+    assert len(dataset) > 0
+
+    for i in range(len(dataset)):
+        tensor, label = dataset[i]
+        assert tensor.dtype == torch.float32
+        assert tensor.shape == (1, 224, 224)
+        assert tensor.min() >= -3.0
+        assert tensor.max() <= 3.0
