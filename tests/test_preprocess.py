@@ -1,6 +1,7 @@
 # Script to test the preprocessing pipeline in src/preprocess.py using pytest
 import os
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 import pytest
 import yaml
 import torch
@@ -215,3 +216,67 @@ def test_tensor_properties(mini_dataset, test_config):
         assert tensor.shape == (1, 224, 224)
         assert tensor.min() >= -3.0
         assert tensor.max() <= 3.0
+
+
+@patch('preprocess.mlflow')
+def test_mlflow_uri_from_env_var(mock_mlflow, mini_dataset, test_config):
+    """Test that MLFLOW_TRACKING_URI env var is used when not set in config"""
+    config = load_config(test_config)
+    del config['mlflow']['tracking_uri']
+    config_path = mini_dataset / "test_params_no_uri.yaml"
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f)
+
+    env_vars = {
+        'MLFLOW_TRACKING_URI': 'http://test-mlflow-host:5000',
+        'MLFLOW_TRACKING_USERNAME': 'test-user',
+        'MLFLOW_TRACKING_PASSWORD': 'test-pass',
+    }
+    mock_mlflow.start_run.return_value.__enter__ = MagicMock(return_value=MagicMock())
+    mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)
+
+    with patch.dict(os.environ, env_vars):
+        run_preprocessing(config_path=str(config_path), testing_size=3, enable_mlflow=True)
+
+    mock_mlflow.set_tracking_uri.assert_called_once_with('http://test-mlflow-host:5000')
+    mock_mlflow.set_experiment.assert_called_once()
+
+
+@patch('preprocess.mlflow')
+def test_mlflow_uri_config_takes_precedence(mock_mlflow, mini_dataset, test_config):
+    """Test that config tracking_uri takes precedence over the env var"""
+    config = load_config(test_config)
+    config['mlflow']['tracking_uri'] = 'http://config-mlflow-host:5000'
+    config_path = mini_dataset / "test_params_with_uri.yaml"
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f)
+
+    env_vars = {
+        'MLFLOW_TRACKING_URI': 'http://env-mlflow-host:5000',
+        'MLFLOW_TRACKING_USERNAME': 'test-user',
+        'MLFLOW_TRACKING_PASSWORD': 'test-pass',
+    }
+    mock_mlflow.start_run.return_value.__enter__ = MagicMock(return_value=MagicMock())
+    mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)
+
+    with patch.dict(os.environ, env_vars):
+        run_preprocessing(config_path=str(config_path), testing_size=3, enable_mlflow=True)
+
+    mock_mlflow.set_tracking_uri.assert_called_once_with('http://config-mlflow-host:5000')
+
+
+@patch('preprocess.mlflow')
+def test_mlflow_credentials_available_in_env(mock_mlflow, mini_dataset, test_config):
+    """Test that USERNAME and PASSWORD from .env are present in os.environ during preprocessing"""
+    env_vars = {
+        'MLFLOW_TRACKING_URI': 'http://test-mlflow-host:5000',
+        'MLFLOW_TRACKING_USERNAME': 'test-user',
+        'MLFLOW_TRACKING_PASSWORD': 'test-pass',
+    }
+    mock_mlflow.start_run.return_value.__enter__ = MagicMock(return_value=MagicMock())
+    mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)
+
+    with patch.dict(os.environ, env_vars):
+        run_preprocessing(config_path=test_config, testing_size=3, enable_mlflow=True)
+        assert os.environ.get('MLFLOW_TRACKING_USERNAME') == 'test-user'
+        assert os.environ.get('MLFLOW_TRACKING_PASSWORD') == 'test-pass'

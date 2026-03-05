@@ -1,4 +1,5 @@
 # Script for preprocessing our images
+from src.utils.secrets import load_credentials
 import os
 import yaml
 
@@ -15,6 +16,9 @@ import traceback
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load credentials to so we can set env variables
+load_credentials()
 
 # To load params from params.yaml
 def load_config(config_path: str = "params.yaml") -> dict:
@@ -147,7 +151,7 @@ def run_preprocessing(config_path: str = 'params.yaml',
         run_name = f"testing_{run_name}"
 
     if enable_mlflow:
-        uri = config.get('mlflow', {}).get('tracking_uri')
+        uri = config.get('mlflow', {}).get('tracking_uri') or os.getenv('MLFLOW_TRACKING_URI')
         if uri:
             mlflow.set_tracking_uri(uri)
         mlflow.set_experiment(experiment_name)
